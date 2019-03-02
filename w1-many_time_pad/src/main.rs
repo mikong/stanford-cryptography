@@ -35,11 +35,11 @@ fn build_key(key: &mut [u8], ciphertexts: &Vec<Vec<u8>>) {
 }
 
 fn decode_ciphertext(key: &[u8], target: &Vec<u8>) {
-    let decode: Vec<u8> = target.iter()
-        .enumerate()
-        .map(|(i, c)| key[i] ^ c)
+    let message: Vec<_> = target.iter()
+        .zip(key)
+        .map(|(k, c)| k ^ c)
         .collect();
-    println!("{}", String::from_utf8_lossy(&decode));
+    println!("{}", String::from_utf8_lossy(&message));
 }
 
 fn main() {
@@ -100,7 +100,7 @@ fn main() {
                              e301d16e9f52f904";
 
     let ciphertexts = vec![c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, target_ciphertext];
-    let ciphertexts: Vec<Vec<u8>> = ciphertexts.iter()
+    let ciphertexts: Vec<_> = ciphertexts.iter()
         .map(|c| hex::decode(c).unwrap())
         .collect();
 
