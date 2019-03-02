@@ -5,3 +5,7 @@ The programming assignments for Coursera Cryptography I by Stanford University a
 ### Week 1: Many Time Pad
 
 Let us see what goes wrong when a stream cipher key is used more than once. Given ciphertexts encrypted with the same stream cipher key, our goal is to decrypt the target ciphertext to get the secret message.
+
+### Week 2: AES in CBC and CTR modes
+
+Implement two encryption/decryption systems, one using AES in CBC mode and another using AES in counter mode (CTR). Given pairs of AES key and ciphertext, our goal is to recover the plaintext.
