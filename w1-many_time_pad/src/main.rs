@@ -104,12 +104,11 @@ fn main() {
         .map(|c| hex::decode(c).unwrap())
         .collect();
 
-    // Note: assumes even length
-    let keylen = target_ciphertext.len() / 2;
+    let target_hex = hex::decode(target_ciphertext).unwrap();
+    let keylen = target_hex.len();
     let mut key = vec![0; keylen];
 
     build_key(&mut key, &ciphertexts);
 
-    let target_hex = hex::decode(target_ciphertext).unwrap();
     decode_ciphertext(&key, &target_hex);
 }
