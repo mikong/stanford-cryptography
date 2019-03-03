@@ -1,6 +1,8 @@
 #[macro_use] extern crate hex_literal;
 extern crate aes_soft as aes;
+extern crate block_padding;
 
+use block_padding::{Pkcs7, Padding};
 use aes::block_cipher_trait::generic_array::GenericArray;
 use aes::block_cipher_trait::BlockCipher;
 use aes::Aes128;
@@ -19,16 +21,18 @@ fn cbc_decrypt_block(key: &[u8], prev_block: &[u8], block: &[u8]) -> Vec<u8> {
 }
 
 fn cbc_decrypt(key: &[u8], ciphertext: &[u8]) -> Vec<u8> {
-    ciphertext.chunks(16)
+    let mut padded_msg: Vec<u8> = ciphertext.chunks(16)
         .collect::<Vec<_>>()
         .windows(2)
         .map(|pair| {
             cbc_decrypt_block(key, pair[0], pair[1])
         })
         .flatten()
-        .collect()
+        .collect();
 
-    // TODO: remove padding
+    let n = Pkcs7::unpad(&padded_msg).unwrap().len();
+    padded_msg.truncate(n);
+    padded_msg
 }
 
 fn main() {
