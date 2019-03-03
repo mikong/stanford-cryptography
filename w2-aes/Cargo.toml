@@ -5,3 +5,5 @@ authors = ["mikong <4162+mikong@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
+hex-literal = "0.1.3"
+aes-soft = "0.3.3"
