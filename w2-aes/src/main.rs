@@ -7,11 +7,9 @@ use aes::block_cipher_trait::generic_array::GenericArray;
 use aes::block_cipher_trait::BlockCipher;
 use aes::Aes128;
 
-fn cbc_decrypt_block(key: &[u8], prev_block: &[u8], block: &[u8]) -> Vec<u8> {
-    let key = GenericArray::from_slice(key);
+fn cbc_decrypt_block(cipher: &Aes128, prev_block: &[u8], block: &[u8]) -> Vec<u8> {
     let mut buf = GenericArray::clone_from_slice(block);
 
-    let cipher = Aes128::new(&key);
     cipher.decrypt_block(&mut buf);
 
     buf.iter()
@@ -21,11 +19,14 @@ fn cbc_decrypt_block(key: &[u8], prev_block: &[u8], block: &[u8]) -> Vec<u8> {
 }
 
 fn cbc_decrypt(key: &[u8], ciphertext: &[u8]) -> Vec<u8> {
+    let key = GenericArray::from_slice(key);
+    let cipher = Aes128::new(&key);
+
     let mut padded_msg: Vec<u8> = ciphertext.chunks(16)
         .collect::<Vec<_>>()
         .windows(2)
         .map(|pair| {
-            cbc_decrypt_block(key, pair[0], pair[1])
+            cbc_decrypt_block(&cipher, pair[0], pair[1])
         })
         .flatten()
         .collect();
