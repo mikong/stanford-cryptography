@@ -37,7 +37,7 @@ fn build_key(key: &mut [u8], ciphertexts: &Vec<Vec<u8>>) {
 fn decode_ciphertext(key: &[u8], target: &Vec<u8>) {
     let message: Vec<_> = target.iter()
         .zip(key)
-        .map(|(k, c)| k ^ c)
+        .map(|(c, k)| k ^ c)
         .collect();
     println!("{}", String::from_utf8_lossy(&message));
 }
