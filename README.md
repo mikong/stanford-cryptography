@@ -9,3 +9,7 @@ Let us see what goes wrong when a stream cipher key is used more than once. Give
 ### Week 2: AES in CBC and CTR modes
 
 Implement two encryption/decryption systems, one using AES in CBC mode and another using AES in counter mode (CTR). Given pairs of AES key and ciphertext, our goal is to recover the plaintext.
+
+### Week 3: File Authentication System with SHA256
+
+Our goal in this project is to build a file authentication system that lets browsers authenticate and play video chunks as they are downloaded without having to wait for the entire file.
