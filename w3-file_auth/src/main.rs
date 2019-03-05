@@ -12,12 +12,11 @@ use sha2::{Sha256, Digest};
 const KB: u64 = 1024;
 const DEFAULT_BUF_SIZE: usize = 1024;
 
-fn total_blocks(metadata: &Metadata) -> u64 {
+fn last_block_size(metadata: &Metadata) -> u64 {
     let size = metadata.len();
     println!("File size: {}", size);
 
-    let pos = size as f64 / KB as f64;
-    pos.ceil() as u64
+    size % KB
 }
 
 fn main() -> io::Result<()> {
@@ -33,8 +32,8 @@ fn main() -> io::Result<()> {
     let metadata = f.metadata()?;
 
     // Move cursor to last block of the file
-    let pos = (total_blocks(&metadata) - 1) * KB;
-    f.seek(SeekFrom::Start(pos))?;
+    let offset = last_block_size(&metadata) as i64;
+    f.seek(SeekFrom::End(-offset))?;
 
     // Read last block
     let mut buf = [0; DEFAULT_BUF_SIZE];
