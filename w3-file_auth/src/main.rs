@@ -1,6 +1,5 @@
 use std::env;
 use std::fs::File;
-use std::fs::Metadata;
 use std::io;
 use std::io::prelude::*;
 use std::io::SeekFrom;
@@ -11,13 +10,6 @@ use sha2::{Sha256, Digest};
 
 const KB: u64 = 1024;
 const DEFAULT_BUF_SIZE: usize = 1024;
-
-fn last_block_size(metadata: &Metadata) -> u64 {
-    let size = metadata.len();
-    println!("File size: {}", size);
-
-    size % KB
-}
 
 fn main() -> io::Result<()> {
     let args: Vec<_> = env::args_os().skip(1).collect();
@@ -32,7 +24,9 @@ fn main() -> io::Result<()> {
     let metadata = f.metadata()?;
     let filesize = metadata.len();
 
-    let mut offset = last_block_size(&metadata) as i64;
+    println!("File size: {}", filesize);
+
+    let mut offset = (filesize % KB) as i64;
     let mut hash = None;
 
     while offset <= filesize as i64 {
