@@ -5,3 +5,4 @@ authors = ["mikong <4162+mikong@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
+sha2 = "0.8.0"
