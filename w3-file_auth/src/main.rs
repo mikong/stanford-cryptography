@@ -30,27 +30,33 @@ fn main() -> io::Result<()> {
     let path = Path::new(filename);
     let mut f = File::open(path)?;
     let metadata = f.metadata()?;
+    let filesize = metadata.len();
 
-    // Move cursor to last block of the file
-    let offset = last_block_size(&metadata) as i64;
-    f.seek(SeekFrom::End(-offset))?;
+    let mut offset = last_block_size(&metadata) as i64;
+    let mut hash = None;
 
-    // Read last block
-    let mut buf = [0; DEFAULT_BUF_SIZE];
-    let len = match f.read(&mut buf) {
-        Ok(0) => return Ok(()),
-        Ok(len) => len,
-        Err(e) => return Err(e),
-    };
+    while offset <= filesize as i64 {
+        f.seek(SeekFrom::End(-offset))?;
 
-    println!("Block length: {}", len);
+        let mut buf = vec![0; DEFAULT_BUF_SIZE];
+        let mut len = match f.read(&mut buf) {
+            Ok(len) => len,
+            Err(e) => return Err(e),
+        };
 
-    // Hash last block
-    let mut hasher = Sha256::new();
-    hasher.input(&buf.to_vec());
-    let result = hasher.result();
+        if let Some(val) = hash {
+            buf.extend(&val);
+            len = buf.len();
+        }
 
-    println!("Hash: {:x}", result);
+        hash = Some(Sha256::digest(&buf[0..len]));
+
+        offset += 1024;
+    }
+
+    if let Some(val) = hash {
+        println!("Hash: {:x}", val);
+    }
 
     Ok(())
 }
