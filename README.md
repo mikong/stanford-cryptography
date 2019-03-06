@@ -14,6 +14,11 @@ Implement two encryption/decryption systems, one using AES in CBC mode and anoth
 
 Our goal in this project is to build a file authentication system that lets browsers authenticate and play video chunks as they are downloaded without having to wait for the entire file.
 
+### Week 4: [Padding Oracle Attack][week-4]
+
+Let's experiment with a padding oracle attack against a toy website. Knowing that the website is vulnerable to a CBC padding oracle attack, our goal is to decrypt the ciphertext in the sample intercepted URL.
+
 [week-1]: w1-many_time_pad/
 [week-2]: w2-aes/
 [week-3]: w3-file_auth/
+[week-4]: w4-padding_oracle_attack/
