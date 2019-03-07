@@ -1,15 +1,12 @@
-extern crate hyper;
+extern crate reqwest;
 
-use hyper::{Body, Client};
-use hyper::client::HttpConnector;
-use hyper::http::Uri;
-use hyper::rt::{self, Future};
+use reqwest::{Client, Url};
 
 const TARGET: &str = "http://crypto-class.appspot.com/po?er=";
 
 #[derive(Debug)]
 struct PaddingOracle {
-    client: Client<HttpConnector, Body>,
+    client: Client,
     target_uri: String,
 }
 
@@ -21,30 +18,24 @@ impl PaddingOracle {
         PaddingOracle { client, target_uri }
     }
 
-    fn get_uri(&self, q: &str) -> Uri {
+    fn get_uri(&self, q: &str) -> Url {
         let uri = format!("{}{}", self.target_uri, q);
-        uri.parse::<Uri>().unwrap()
+        Url::parse(&uri).unwrap()
     }
 
-    fn query(&self, q: &str) -> impl Future<Item=(), Error=()> {
+    fn query(&self, q: &str) {
         let uri = self.get_uri(q);
 
-        self.client
-            .get(uri)
-            .map(|res| {
-                println!("Response: {}", res.status()); 
-            })
-            .map_err(|err| {
-                println!("Error: {}", err);
-            })
+        match self.client.get(uri).send() {
+            Ok(res) => println!("Response: {}", res.status()),
+            Err(e) => println!("Error: {}", e),
+        }
     }
 }
 
 fn main() {
     println!("Padding Oracle Attack!");
 
-    rt::run(rt::lazy(|| {
-        let po = PaddingOracle::new(TARGET);
-        po.query("")
-    }));
+    let po = PaddingOracle::new(TARGET);
+    po.query("");
 }
