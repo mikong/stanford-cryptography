@@ -33,6 +33,13 @@ impl PaddingOracle {
     }
 }
 
+fn guess_iter() -> impl Iterator<Item=u8> {
+    (1..=16) // padding
+        .chain(32..=32) // space
+        .chain(97..=122) // lowercase letters
+        .chain(65..=90) // uppercase letters
+}
+
 fn main() {
     println!("Padding Oracle Attack!");
 
@@ -50,7 +57,7 @@ fn main() {
     let po = PaddingOracle::new(TARGET);
 
     for (i, pad) in (1..=16).enumerate() {
-        for guess in 0..=127 {
+        for guess in guess_iter() {
             let index = 15 - i;
             ivp[index] = iv[index] ^ pad ^ guess;
             for k in index+1..=15 {
