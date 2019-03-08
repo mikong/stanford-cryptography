@@ -1,0 +1,7 @@
+[package]
+name = "w5-mitm_dlog"
+version = "0.1.0"
+authors = ["mikong <4162+mikong@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]
