@@ -40,6 +40,33 @@ fn guess_iter() -> impl Iterator<Item=u8> {
         .chain(65..=90) // uppercase letters
 }
 
+fn decrypt_block(po: &PaddingOracle, prev_block: &[u8], block: &[u8]) -> [u8; 16] {
+    let mut modblk = [0u8; 16];
+    let mut plaintext = [0u8; 16];
+
+    let block_str = hex::encode(block);
+    for (i, pad) in (1..=16).enumerate() {
+        let index = 15 - i;
+
+        for k in index+1..=15 {
+            modblk[k] = prev_block[k] ^ pad ^ plaintext[k];
+        }
+
+        for g in guess_iter() {
+            modblk[index] = prev_block[index] ^ pad ^ g;
+
+            let q = format!("{}{}", hex::encode(modblk), block_str);
+            if let StatusCode::NOT_FOUND = po.query(&q) {
+                println!("valid padding: {}", g);
+                plaintext[index] = g;
+                break;
+            }
+        }
+    }
+
+    plaintext
+}
+
 fn main() {
     println!("Padding Oracle Attack!");
 
@@ -51,30 +78,9 @@ fn main() {
     let mut blocks_iter = ciphertext.chunks(16);
     let iv = blocks_iter.next().unwrap();
     let c0 = blocks_iter.next().unwrap();
-    let mut ivp = [0u8; 16];
-    let mut m0 = [0u8; 16];
 
     let po = PaddingOracle::new(TARGET);
-
-    let c0_str = hex::encode(c0);
-    for (i, pad) in (1..=16).enumerate() {
-        let index = 15 - i;
-
-        for k in index+1..=15 {
-            ivp[k] = iv[k] ^ pad ^ m0[k];
-        }
-
-        for guess in guess_iter() {
-            ivp[index] = iv[index] ^ pad ^ guess;
-
-            let q = format!("{}{}", hex::encode(ivp), c0_str);
-            if let StatusCode::NOT_FOUND = po.query(&q) {
-                println!("valid padding: {}", guess);
-                m0[index] = guess;
-                break;
-            }
-        }
-    }
+    let m0 = decrypt_block(&po, &iv, &c0);
 
     println!("m0: {}", String::from_utf8_lossy(&m0));
 }
