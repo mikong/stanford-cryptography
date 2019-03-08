@@ -18,7 +18,12 @@ Our goal in this project is to build a file authentication system that lets brow
 
 Let's experiment with a padding oracle attack against a toy website. Knowing that the website is vulnerable to a CBC padding oracle attack, our goal is to decrypt the ciphertext in the sample intercepted URL.
 
+### Week 5: [Meet-in-the-Middle Attack (MITM) on Discrete Log][week-5]
+
+Our goal is to write a program to compute discrete log modulo a prime _p_. In this project, we'll implement an algorithm that runs in time roughly √2^40 = 2^20 using a meet-in-the-middle attack.
+
 [week-1]: w1-many_time_pad/
 [week-2]: w2-aes/
 [week-3]: w3-file_auth/
 [week-4]: w4-padding_oracle_attack/
+[week-5]: w5-mitm_dlog/
