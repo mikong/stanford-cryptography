@@ -56,15 +56,18 @@ fn main() {
 
     let po = PaddingOracle::new(TARGET);
 
+    let c0_str = hex::encode(c0);
     for (i, pad) in (1..=16).enumerate() {
-        for guess in guess_iter() {
-            let index = 15 - i;
-            ivp[index] = iv[index] ^ pad ^ guess;
-            for k in index+1..=15 {
-                ivp[k] = iv[k] ^ pad ^ m0[k];
-            }
+        let index = 15 - i;
 
-            let q = format!("{}{}", hex::encode(ivp), hex::encode(c0));
+        for k in index+1..=15 {
+            ivp[k] = iv[k] ^ pad ^ m0[k];
+        }
+
+        for guess in guess_iter() {
+            ivp[index] = iv[index] ^ pad ^ guess;
+
+            let q = format!("{}{}", hex::encode(ivp), c0_str);
             if let StatusCode::NOT_FOUND = po.query(&q) {
                 println!("valid padding: {}", guess);
                 m0[index] = guess;
