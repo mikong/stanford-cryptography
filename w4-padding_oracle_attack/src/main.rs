@@ -75,12 +75,13 @@ fn main() {
                            4a61044426fb515dad3f21f18aa577c0
                            bdf302936266926ff37dbf7035d5eeb4");
 
-    let mut blocks_iter = ciphertext.chunks(16);
-    let iv = blocks_iter.next().unwrap();
-    let c0 = blocks_iter.next().unwrap();
-
     let po = PaddingOracle::new(TARGET);
-    let m0 = decrypt_block(&po, &iv, &c0);
 
-    println!("m0: {}", String::from_utf8_lossy(&m0));
+    ciphertext.chunks(16)
+        .collect::<Vec<_>>()
+        .windows(2)
+        .for_each(|blk_pair| {
+            let plaintext = decrypt_block(&po, blk_pair[0], blk_pair[1]);
+            println!("plaintext: {}", String::from_utf8_lossy(&plaintext));
+        });
 }
