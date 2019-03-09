@@ -26,7 +26,7 @@ fn build_table(h: &BigUint, g: &BigUint, p: &BigUint, b: u32) -> BigMap {
     table
 }
 
-fn find_x(table: &BigMap, g: &BigUint, p: &BigUint, b: u32) {
+fn lookup_x0_x1(table: &BigMap, g: &BigUint, p: &BigUint, b: u32) -> Option<(u32, u32)> {
     let big_b = BigUint::from_bytes_le(&b.to_le_bytes());
 
     for x0 in 0..b {
@@ -36,11 +36,15 @@ fn find_x(table: &BigMap, g: &BigUint, p: &BigUint, b: u32) {
         let big_x0 = BigUint::from_bytes_le(&bytes);
         let right = g_b.modpow(&big_x0, p);
 
-        if let Some(x1) = table.get(&right) {
-            println!("x0: {}, x1: {}", x0, x1);
-            break;
+        if let Some(&x1) = table.get(&right) {
+            return Some((x0, x1));
         }
     }
+    None
+}
+
+fn find_x(x0: u32, x1: u32, b: u32) -> u64 {
+    u64::from(x0) * u64::from(b) + u64::from(x1)
 }
 
 fn main() {
@@ -55,5 +59,12 @@ fn main() {
     let b = 2u32.pow(3);
 
     let table = build_table(&h, &g, &p, b);
-    find_x(&table, &g, &p, b);
+    match lookup_x0_x1(&table, &g, &p, b) {
+        Some((x0, x1)) => {
+            println!("x0: {}, x1: {}", x0, x1);
+            let x = find_x(x0, x1, b);
+            println!("x: {}", x);
+        },
+        None => println!("x not found"),
+    };
 }
