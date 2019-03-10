@@ -9,18 +9,20 @@ type BigMap = HashMap<BigUint, u32>;
 fn build_table(h: &BigUint, g: &BigUint, p: &BigUint, b: u32) -> BigMap {
     let mut table = HashMap::with_capacity(b as usize);
 
-    let two = vec![2];
-    let two = BigUint::new(two);
-    let p_minus_2 = p - &two;
-    let g_inverse = g.modpow(&p_minus_2, p);
+    // Instead of doing modular inversion (g^x1)^(p-2) in the loop,
+    // we can calculate g^(p-2) ahead of time
+    let two = BigUint::new(vec![2]);
+    let g_inverse = g.modpow(&(p - &two), p);
 
-    for x1 in 0..b {
-        let bytes = x1.to_le_bytes();
-        let big_x1 = BigUint::from_bytes_le(&bytes);
-        let g_x1_inverse = g_inverse.modpow(&big_x1, p);
-        let left = h * &g_x1_inverse % p;
-
-        table.insert(left, x1);
+    // start with exponentiation base h instead of multiplying h,
+    // h * g^(-x1), on every iteration
+    let mut left = h.clone();
+    table.insert(left.clone(), 0);
+    for x1 in 1..b {
+        // reuse exponentiation: simply multiply
+        // by g^(-1) to increase exponent by 1
+        left = &left * &g_inverse % p;
+        table.insert(left.clone(), x1);
     }
 
     table
@@ -29,15 +31,16 @@ fn build_table(h: &BigUint, g: &BigUint, p: &BigUint, b: u32) -> BigMap {
 fn lookup_x0_x1(table: &BigMap, g: &BigUint, p: &BigUint, b: u32) -> Option<(u32, u32)> {
     let big_b = BigUint::from_bytes_le(&b.to_le_bytes());
     let g_b = g.modpow(&big_b, p);
+    let mut right = BigUint::new(vec![1]);
 
     for x0 in 0..b {
-        let bytes = x0.to_le_bytes();
-        let big_x0 = BigUint::from_bytes_le(&bytes);
-        let right = g_b.modpow(&big_x0, p);
-
         if let Some(&x1) = table.get(&right) {
             return Some((x0, x1));
         }
+
+        // reuse exponentiation: simply multiply
+        // by g^b to increase exponent by 1
+        right = &right * &g_b % p;
     }
     None
 }
