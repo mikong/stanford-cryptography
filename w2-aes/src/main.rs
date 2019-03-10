@@ -6,6 +6,8 @@ use block_padding::{Pkcs7, Padding};
 use aes::block_cipher_trait::generic_array::GenericArray;
 use aes::block_cipher_trait::BlockCipher;
 use aes::Aes128;
+use rand_os::OsRng;
+use rand_os::rand_core::RngCore;
 
 fn cbc_decrypt_block(cipher: &Aes128, prev_block: &[u8], block: &[u8]) -> Vec<u8> {
     let mut buf = GenericArray::clone_from_slice(block);
@@ -42,11 +44,21 @@ fn bytes_to_u128(bytes: &[u8]) -> u128 {
     u128::from_be_bytes(fixed)
 }
 
-fn ctr_decrypt(key: &[u8], ciphertext: &[u8]) -> Vec<u8> {
-    let mut iter = ciphertext.chunks(16);
-    let iv = iter.next().unwrap();
-    let iv = bytes_to_u128(iv);
+fn ctr_encrypt(key: &[u8], plaintext: &[u8]) -> Vec<u8> {
+    let mut os_rng = OsRng::new().unwrap();
+    let mut iv = vec![0u8; 16];
+    os_rng.fill_bytes(&mut iv);
+    let big_iv = bytes_to_u128(&iv);
 
+    let iter = plaintext.chunks(16);
+    let mut ciphertext = ctr_process(key, iter, big_iv);
+
+    let mut result = iv;
+    result.append(&mut ciphertext);
+    result
+}
+
+fn ctr_process<'a, I: Iterator<Item = &'a [u8]>>(key: &[u8], iter: I, iv: u128) -> Vec<u8> {
     let key = GenericArray::from_slice(key);
     let cipher = Aes128::new(&key);
 
@@ -62,6 +74,14 @@ fn ctr_decrypt(key: &[u8], ciphertext: &[u8]) -> Vec<u8> {
         })
         .flatten()
         .collect()
+}
+
+fn ctr_decrypt(key: &[u8], ciphertext: &[u8]) -> Vec<u8> {
+    let mut iter = ciphertext.chunks(16);
+    let iv = iter.next().unwrap();
+    let iv = bytes_to_u128(iv);
+
+    ctr_process(key, iter, iv)
 }
 
 fn main() {
@@ -84,5 +104,10 @@ fn main() {
 
     let ctr_decoded = ctr_decrypt(&ctr_key, &ctr_ct);
 
+    println!("{:?}", String::from_utf8_lossy(&ctr_decoded));
+
+    let plaintext = b"Hello world!";
+    let ctr_encrypted = ctr_encrypt(&ctr_key, plaintext);
+    let ctr_decoded = ctr_decrypt(&ctr_key, &ctr_encrypted);
     println!("{:?}", String::from_utf8_lossy(&ctr_decoded));
 }
