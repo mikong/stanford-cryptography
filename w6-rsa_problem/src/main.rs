@@ -85,7 +85,8 @@ fn main() {
     let p = (&b + &y) / BigUint::from(4u32);
     let q = (&b - &y) / BigUint::from(6u32);
     if &p * &q == n {
-        println!("3. Prime p: {:?}", p.to_string());
+        // Print the smaller factor
+        println!("3. Prime: {:?}", p.min(q).to_string());
     }
 
     // Challenge #4:
