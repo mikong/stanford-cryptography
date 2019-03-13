@@ -24,13 +24,12 @@ fn cbc_encrypt(key: &[u8], plaintext: &[u8]) -> Vec<u8> {
         .collect::<Vec<_>>()
         .chunks(16) // Iterator<Item=&[&u8]>
         .scan(iv.clone(), |pad, block| {
-            let block: Vec<u8> = block.iter() // Iterator<Item=&&u8>
+            let block_iter = block.iter() // Iterator<Item=&&u8>
                 // Cannot copy &mut Vec<u8>, so we
                 // dereference then reference
                 .zip(&*pad)
-                .map(|(&a, b)| a ^ b)
-                .collect();
-            let mut buf = GenericArray::clone_from_slice(&block);
+                .map(|(&a, b)| a ^ b);
+            let mut buf = GenericArray::from_exact_iter(block_iter).unwrap();
             cipher.encrypt_block(&mut buf);
             *pad = buf.to_vec();
             Some(buf)
@@ -103,8 +102,8 @@ fn ctr_process<'a, I: Iterator<Item = &'a [u8]>>(key: &[u8], iter: I, iv: u128) 
 
     iter.enumerate()
         .map(|(i, block)| {
-            let ctr_blk = (iv + i as u128).to_be_bytes();
-            let mut buf = GenericArray::clone_from_slice(&ctr_blk);
+            let mut ctr_blk = (iv + i as u128).to_be_bytes();
+            let mut buf = GenericArray::from_mut_slice(&mut ctr_blk);
             cipher.encrypt_block(&mut buf);
             buf.iter()
                 .zip(block)
