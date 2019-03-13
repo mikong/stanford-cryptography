@@ -12,18 +12,19 @@ use rand_os::OsRng;
 use rand_os::rand_core::RngCore;
 
 fn cbc_encrypt(key: &[u8], plaintext: &[u8]) -> Vec<u8> {
-    let iv = gen_iv();
     let key = GenericArray::from_slice(key);
     let cipher = Aes128::new(&key);
 
     let pad_len = 16 - plaintext.len() % 16;
     let padb = pad_len as u8;
 
-    let mut ciphertext: Vec<u8> = plaintext.iter()
+    let mut ciphertext = gen_iv();
+
+    plaintext.iter()
         .chain(repeat(&padb).take(pad_len))
         .collect::<Vec<_>>()
         .chunks(16) // Iterator<Item=&[&u8]>
-        .scan(iv.clone(), |pad, block| {
+        .scan(ciphertext.clone(), |pad, block| {
             let block_iter = block.iter() // Iterator<Item=&&u8>
                 // Cannot copy &mut Vec<u8>, so we
                 // dereference then reference
@@ -34,12 +35,9 @@ fn cbc_encrypt(key: &[u8], plaintext: &[u8]) -> Vec<u8> {
             *pad = buf.to_vec();
             Some(buf)
         })
-        .flatten()
-        .collect();
+        .for_each(|x| ciphertext.extend_from_slice(&x));
 
-    let mut result = iv;
-    result.append(&mut ciphertext);
-    result
+    ciphertext
 }
 
 fn cbc_decrypt_block(cipher: &Aes128, prev_block: &[u8], block: &[u8]) -> Vec<u8> {
