@@ -2,12 +2,46 @@
 extern crate aes_soft as aes;
 extern crate block_padding;
 
+use std::iter::repeat;
+
 use block_padding::{Pkcs7, Padding};
 use aes::block_cipher_trait::generic_array::GenericArray;
 use aes::block_cipher_trait::BlockCipher;
 use aes::Aes128;
 use rand_os::OsRng;
 use rand_os::rand_core::RngCore;
+
+fn cbc_encrypt(key: &[u8], plaintext: &[u8]) -> Vec<u8> {
+    let iv = gen_iv();
+    let key = GenericArray::from_slice(key);
+    let cipher = Aes128::new(&key);
+
+    let pad_len = 16 - plaintext.len() % 16;
+    let padb = pad_len as u8;
+
+    let mut ciphertext: Vec<u8> = plaintext.iter()
+        .chain(repeat(&padb).take(pad_len))
+        .collect::<Vec<_>>()
+        .chunks(16) // Iterator<Item=&[&u8]>
+        .scan(iv.clone(), |pad, block| {
+            let block: Vec<u8> = block.iter() // Iterator<Item=&&u8>
+                // Cannot copy &mut Vec<u8>, so we
+                // dereference then reference
+                .zip(&*pad)
+                .map(|(&a, b)| a ^ b)
+                .collect();
+            let mut buf = GenericArray::clone_from_slice(&block);
+            cipher.encrypt_block(&mut buf);
+            *pad = buf.to_vec();
+            Some(buf)
+        })
+        .flatten()
+        .collect();
+
+    let mut result = iv;
+    result.append(&mut ciphertext);
+    result
+}
 
 fn cbc_decrypt_block(cipher: &Aes128, prev_block: &[u8], block: &[u8]) -> Vec<u8> {
     let mut buf = GenericArray::clone_from_slice(block);
@@ -38,6 +72,13 @@ fn cbc_decrypt(key: &[u8], ciphertext: &[u8]) -> Vec<u8> {
     padded_msg
 }
 
+fn gen_iv() -> Vec<u8> {
+    let mut os_rng = OsRng::new().unwrap();
+    let mut iv = vec![0u8; 16];
+    os_rng.fill_bytes(&mut iv);
+    iv
+}
+
 fn bytes_to_u128(bytes: &[u8]) -> u128 {
     let mut fixed: [u8; 16] = Default::default();
     fixed.copy_from_slice(bytes);
@@ -45,9 +86,7 @@ fn bytes_to_u128(bytes: &[u8]) -> u128 {
 }
 
 fn ctr_encrypt(key: &[u8], plaintext: &[u8]) -> Vec<u8> {
-    let mut os_rng = OsRng::new().unwrap();
-    let mut iv = vec![0u8; 16];
-    os_rng.fill_bytes(&mut iv);
+    let iv = gen_iv();
     let big_iv = bytes_to_u128(&iv);
 
     let iter = plaintext.chunks(16);
@@ -95,6 +134,12 @@ fn main() {
 
     println!("{:?}", String::from_utf8_lossy(&decoded));
 
+    let plaintext = b"Hello CBC mode!";
+    let cbc_encrypted = cbc_encrypt(&key, plaintext);
+    let cbc_decoded = cbc_decrypt(&key, &cbc_encrypted);
+    assert_eq!(plaintext, &cbc_decoded[..]);
+    println!("{:?}", String::from_utf8_lossy(&cbc_decoded));
+
     let ctr_key = hex!("36f18357be4dbd77f050515c73fcf9f2");
     let ctr_ct = hex!("69dda8455c7dd4254bf353b773304eec
                        0ec7702330098ce7f7520d1cbbb20fc3
@@ -106,7 +151,7 @@ fn main() {
 
     println!("{:?}", String::from_utf8_lossy(&ctr_decoded));
 
-    let plaintext = b"Hello world!";
+    let plaintext = b"Hello CTR mode!";
     let ctr_encrypted = ctr_encrypt(&ctr_key, plaintext);
     let ctr_decoded = ctr_decrypt(&ctr_key, &ctr_encrypted);
     println!("{:?}", String::from_utf8_lossy(&ctr_decoded));
