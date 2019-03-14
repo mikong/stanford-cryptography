@@ -6,10 +6,20 @@ use std::iter::repeat;
 
 use block_padding::{Pkcs7, Padding};
 use aes::block_cipher_trait::generic_array::GenericArray;
+use aes::block_cipher_trait::generic_array::typenum::U16;
 use aes::block_cipher_trait::BlockCipher;
 use aes::Aes128;
 use rand_os::OsRng;
 use rand_os::rand_core::RngCore;
+
+fn cbc_encrypt_block(cipher: &Aes128, block: &[&u8], pad: &[u8]) -> GenericArray<u8, U16> {
+    let block_iter = block.iter()
+        .zip(pad)
+        .map(|(&a, b)| a ^ b);
+    let mut buf = GenericArray::from_exact_iter(block_iter).unwrap();
+    cipher.encrypt_block(&mut buf);
+    buf
+}
 
 fn cbc_encrypt(key: &[u8], plaintext: &[u8]) -> Vec<u8> {
     let key = GenericArray::from_slice(key);
@@ -25,13 +35,7 @@ fn cbc_encrypt(key: &[u8], plaintext: &[u8]) -> Vec<u8> {
         .collect::<Vec<_>>()
         .chunks(16) // Iterator<Item=&[&u8]>
         .scan(ciphertext.clone(), |pad, block| {
-            let block_iter = block.iter() // Iterator<Item=&&u8>
-                // Cannot copy &mut Vec<u8>, so we
-                // dereference then reference
-                .zip(&*pad)
-                .map(|(&a, b)| a ^ b);
-            let mut buf = GenericArray::from_exact_iter(block_iter).unwrap();
-            cipher.encrypt_block(&mut buf);
+            let buf = cbc_encrypt_block(&cipher, block, &*pad);
             *pad = buf.to_vec();
             Some(buf)
         })
