@@ -32,3 +32,7 @@ Our goal in this project is to break RSA when the public modulus N is generated 
 [week-4]: w4-padding_oracle_attack/
 [week-5]: w5-mitm_dlog/
 [week-6]: w6-rsa_problem/
+
+## Acknowledgements
+
+The Coursera [Cryptography I](https://www.coursera.org/learn/crypto) is offered by Stanford University and taught by Professor Dan Boneh. Only shortened/paraphrased description of the programming assignments are provided in this repository. Please visit the online course for the original and full description of the weekly programming assignments.
