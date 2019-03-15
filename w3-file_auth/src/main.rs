@@ -11,6 +11,42 @@ use sha2::{Sha256, Digest};
 const KB: u64 = 1024;
 const DEFAULT_BUF_SIZE: usize = 1024;
 
+#[derive(Debug)]
+struct FileRevIter {
+    file: File,
+    filesize: u64,
+    offset: i64,
+}
+
+impl FileRevIter {
+    fn new(path: &Path) -> io::Result<Self> {
+        let file = File::open(path)?;
+        let metadata = file.metadata()?;
+        let filesize = metadata.len();
+        let offset = (filesize % KB) as i64;
+
+        Ok(FileRevIter { file, filesize, offset })
+    }
+}
+
+impl Iterator for FileRevIter {
+    type Item = (usize, Vec<u8>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.offset <= self.filesize as i64 {
+            self.file.seek(SeekFrom::End(-self.offset)).unwrap();
+
+            let mut buf = vec![0; DEFAULT_BUF_SIZE];
+            let len = self.file.read(&mut buf).unwrap();
+
+            self.offset += 1024;
+
+            return Some((len, buf));
+        }
+        None
+    }
+}
+
 fn main() -> io::Result<()> {
     let args: Vec<_> = env::args_os().skip(1).collect();
     if args.len() < 1 {
@@ -20,32 +56,20 @@ fn main() -> io::Result<()> {
     let filename = &args[0];
 
     let path = Path::new(filename);
-    let mut f = File::open(path)?;
-    let metadata = f.metadata()?;
-    let filesize = metadata.len();
+    let file_iter = FileRevIter::new(&path)?;
 
-    println!("File size: {}", filesize);
+    println!("File size: {}", file_iter.filesize);
 
-    let mut offset = (filesize % KB) as i64;
     let mut hash = None;
 
-    while offset <= filesize as i64 {
-        f.seek(SeekFrom::End(-offset))?;
-
-        let mut buf = vec![0; DEFAULT_BUF_SIZE];
-        let mut len = match f.read(&mut buf) {
-            Ok(len) => len,
-            Err(e) => return Err(e),
-        };
-
+    // Iterates file in from last block to first
+    for (mut len, mut buf) in file_iter {
         if let Some(val) = hash {
             buf.extend(&val);
             len = buf.len();
         }
 
         hash = Some(Sha256::digest(&buf[0..len]));
-
-        offset += 1024;
     }
 
     if let Some(val) = hash {
