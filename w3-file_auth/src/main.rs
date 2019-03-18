@@ -60,19 +60,20 @@ fn main() -> io::Result<()> {
 
     println!("File size: {}", file_iter.filesize);
 
-    let mut hash = None;
+    let mut hash_data = Vec::new();
 
     // Iterates file in from last block to first
     for (mut len, mut buf) in file_iter {
-        if let Some(val) = hash {
-            buf.extend(&val);
+        if let Some(val) = hash_data.last() {
+            buf.extend(val);
             len = buf.len();
         }
 
-        hash = Some(Sha256::digest(&buf[0..len]));
+        let hash = Sha256::digest(&buf[0..len]);
+        hash_data.push(hash);
     }
 
-    if let Some(val) = hash {
+    if let Some(val) = hash_data.last() {
         println!("Hash: {:x}", val);
     }
 
