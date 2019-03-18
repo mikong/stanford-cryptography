@@ -1,5 +1,5 @@
 use std::env;
-use std::fs::File;
+use std::fs::{OpenOptions, File};
 use std::io;
 use std::io::prelude::*;
 use std::io::SeekFrom;
@@ -50,10 +50,14 @@ impl Iterator for FileRevIter {
 fn main() -> io::Result<()> {
     let args: Vec<_> = env::args_os().skip(1).collect();
     if args.len() < 1 {
-        println!("Error: File path argument is missing");
+        println!("Error: Input and output file path arguments are missing");
+        process::exit(1);
+    } else if args.len() < 2 {
+        println!("Error: Output file path argument is missing");
         process::exit(1);
     }
     let filename = &args[0];
+    let output_filename = &args[1];
 
     let path = Path::new(filename);
     let file_iter = FileRevIter::new(&path)?;
@@ -76,6 +80,25 @@ fn main() -> io::Result<()> {
     if let Some(val) = hash_data.last() {
         println!("Hash: {:x}", val);
     }
+
+    let mut output_file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(output_filename)?;
+
+    let mut input_file = File::open(path)?;
+    let mut buf = vec![0; DEFAULT_BUF_SIZE];
+
+    // We skip 1 because h0 is not included
+    for h in hash_data.iter().rev().skip(1) {
+        // Write each block appended with the hash of the next block
+        let len = input_file.read(&mut buf).unwrap();
+        output_file.write(&buf[0..len]).unwrap();
+        output_file.write(h).unwrap();
+    }
+    // Write last block (no appended hash)
+    let len = input_file.read(&mut buf).unwrap();
+    output_file.write(&buf[0..len]).unwrap();
 
     Ok(())
 }
