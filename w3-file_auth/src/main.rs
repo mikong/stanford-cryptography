@@ -1,11 +1,13 @@
+extern crate getopts;
+
 use std::env;
 use std::fs::{OpenOptions, File};
 use std::io;
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::path::Path;
-use std::process;
 
+use getopts::Options;
 use sha2::{Sha256, Digest};
 use sha2::digest::generic_array::GenericArray;
 use sha2::digest::generic_array::typenum::U32;
@@ -97,15 +99,31 @@ fn sign<P>(input_path: P, output_path: P, hashes: &HashVec) -> io::Result<()>
     Ok(())
 }
 
+fn print_usage(opts: Options) {
+    let brief = format!("Usage: ./target/debug/w3-file_auth \
+        INPUT_FILE OUTPUT_FILE [options]");
+    print!("{}", opts.usage(&brief));
+}
+
 fn main() -> io::Result<()> {
     let args: Vec<_> = env::args_os().skip(1).collect();
-    if args.len() < 1 {
-        println!("Error: Input and output file path arguments are missing");
-        process::exit(1);
-    } else if args.len() < 2 {
-        println!("Error: Output file path argument is missing");
-        process::exit(1);
+
+    let mut opts = Options::new();
+    opts.optflag("h", "help", "print this help menu");
+    let matches = match opts.parse(&args) {
+        Ok(m) => m,
+        Err(f) => panic!(f.to_string()),
+    };
+    if matches.opt_present("h") {
+        print_usage(opts);
+        return Ok(());
     }
+
+    if matches.free.len() < 2 {
+        print_usage(opts);
+        return Ok(());
+    }
+
     let input_filename = &args[0];
     let output_filename = &args[1];
     let input_path = Path::new(input_filename);
