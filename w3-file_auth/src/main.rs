@@ -1,4 +1,5 @@
 extern crate getopts;
+extern crate hex;
 
 use std::env;
 use std::fs::{OpenOptions, File};
@@ -14,6 +15,8 @@ use sha2::digest::generic_array::typenum::U32;
 
 const KB: u64 = 1024;
 const DEFAULT_BUF_SIZE: usize = 1024;
+const BLOCK_SIZE: usize = 1024;
+const HASH_SIZE: usize = 32;
 
 type HashVec = Vec<GenericArray<u8, U32>>;
 
@@ -99,6 +102,38 @@ fn sign<P>(input_path: P, output_path: P, hashes: &HashVec) -> io::Result<()>
     Ok(())
 }
 
+fn verify<P>(input_path: P, output_path: P, hash: &[u8]) -> io::Result<bool>
+    where P: AsRef<Path>
+{
+    let mut input_file = File::open(input_path)?;
+    let augmented_size = BLOCK_SIZE + HASH_SIZE;
+    let mut buf = vec![0; augmented_size];
+    let mut hash = GenericArray::clone_from_slice(hash);
+
+    let mut output_file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(output_path)?;
+
+    loop {
+        let len = input_file.read(&mut buf).unwrap();
+        if len > 0 {
+            let block_hash = Sha256::digest(&buf[0..len]);
+            if hash != block_hash {
+                return Ok(false);
+            }
+            if len != augmented_size {
+                output_file.write(&buf[0..len]).unwrap();
+                return Ok(true);
+            }
+            output_file.write(&buf[0..BLOCK_SIZE]).unwrap();
+            hash = GenericArray::clone_from_slice(&buf[BLOCK_SIZE..]);
+        } else {
+            return Ok(false);
+        }
+    }
+}
+
 fn print_usage(opts: Options) {
     let brief = format!("Usage: ./target/debug/w3-file_auth \
         INPUT_FILE OUTPUT_FILE [options]");
@@ -109,6 +144,8 @@ fn main() -> io::Result<()> {
     let args: Vec<_> = env::args_os().skip(1).collect();
 
     let mut opts = Options::new();
+    opts.optopt("v", "verify", "verify signed input file \
+        and output original file", "HASH");
     opts.optflag("h", "help", "print this help menu");
     let matches = match opts.parse(&args) {
         Ok(m) => m,
@@ -118,7 +155,7 @@ fn main() -> io::Result<()> {
         print_usage(opts);
         return Ok(());
     }
-
+    let verify_hash = matches.opt_str("v");
     if matches.free.len() < 2 {
         print_usage(opts);
         return Ok(());
@@ -129,15 +166,23 @@ fn main() -> io::Result<()> {
     let input_path = Path::new(input_filename);
     let output_path = Path::new(output_filename);
 
-    let mut hashes = Vec::new();
+    match verify_hash {
+        Some(hash) => {
+            let hash = hex::decode(hash).unwrap();
+            let result = verify(&input_path, &output_path, &hash)?;
+            println!("Verified: {}", result);
+        },
+        None => {
+            let mut hashes = Vec::new();
+            compute_hashes(&input_path, &mut hashes)?;
 
-    compute_hashes(&input_path, &mut hashes)?;
+            if let Some(val) = hashes.last() {
+                println!("Hash: {:x}", val);
+            }
 
-    if let Some(val) = hashes.last() {
-        println!("Hash: {:x}", val);
+            sign(&input_path, &output_path, &hashes)?;
+        },
     }
-
-    sign(&input_path, &output_path, &hashes)?;
 
     Ok(())
 }
