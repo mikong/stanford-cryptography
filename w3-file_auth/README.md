@@ -34,3 +34,29 @@ We use an existing crypto library, [sha2], for its SHA256 function.
 If the file size is not a multiple of 1KB then the very last block will be shorter than 1KB, but all other blocks will be exactly 1KB.
 
 Compute the hash `h0` of a given file F and verify blocks of F as they are received by the client.
+
+## Usage
+
+```
+Usage: ./target/debug/w3-file_auth INPUT_FILE OUTPUT_FILE [options]
+
+Options:
+    -v, --verify HASH   verify signed input file and output original file
+    -h, --help          print this help menu
+```
+
+Sign the video file:
+
+```
+$ ./target/debug/w3-file_auth /path/to/video.mp4 /path/to/video.mp4.signed
+Hash 0: 03c08f4ee0b576fe319338139c045c89c3e8e9409633bea29442e21425006ea8
+File created: /path/to/video.mp4.signed
+```
+
+Verify the signed video file, and output the video file:
+
+```
+$ ./target/debug/w3-file_auth /path/to/video.mp4.signed /path/to/video.verified.mp4 -v 03c08f4ee0b576fe319338139c045c89c3e8e9409633bea29442e21425006ea8
+Verified: true
+File created: /path/to/video.verified.mp4
+```
