@@ -7,9 +7,13 @@ use std::path::Path;
 use std::process;
 
 use sha2::{Sha256, Digest};
+use sha2::digest::generic_array::GenericArray;
+use sha2::digest::generic_array::typenum::U32;
 
 const KB: u64 = 1024;
 const DEFAULT_BUF_SIZE: usize = 1024;
+
+type HashVec = Vec<GenericArray<u8, U32>>;
 
 #[derive(Debug)]
 struct FileRevIter {
@@ -19,7 +23,7 @@ struct FileRevIter {
 }
 
 impl FileRevIter {
-    fn new(path: &Path) -> io::Result<Self> {
+    fn new<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = File::open(path)?;
         let metadata = file.metadata()?;
         let filesize = metadata.len();
@@ -47,6 +51,52 @@ impl Iterator for FileRevIter {
     }
 }
 
+fn compute_hashes<P>(input_path: P, hashes: &mut HashVec) -> io::Result<()>
+    where P: AsRef<Path>
+{
+    let file_iter = FileRevIter::new(input_path)?;
+    println!("File size: {}", file_iter.filesize);
+
+    // Iterates file from last block to first
+    for (mut len, mut buf) in file_iter {
+        if let Some(val) = hashes.last() {
+            buf.extend(val);
+            len = buf.len();
+        }
+
+        let hash = Sha256::digest(&buf[0..len]);
+        hashes.push(hash);
+    }
+
+    Ok(())
+}
+
+fn sign<P>(input_path: P, output_path: P, hashes: &HashVec) -> io::Result<()>
+    where P: AsRef<Path>
+{
+    let mut output_file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(output_path)?;
+
+    let mut input_file = File::open(input_path)?;
+    let mut buf = vec![0; DEFAULT_BUF_SIZE];
+
+    // We skip 1 because h0 is not included
+    for h in hashes.iter().rev().skip(1) {
+        // Write each block appended with the hash of the next block
+        let len = input_file.read(&mut buf).unwrap();
+        output_file.write(&buf[0..len]).unwrap();
+        output_file.write(h).unwrap();
+    }
+
+    // Write last block (no appended hash)
+    let len = input_file.read(&mut buf).unwrap();
+    output_file.write(&buf[0..len]).unwrap();
+
+    Ok(())
+}
+
 fn main() -> io::Result<()> {
     let args: Vec<_> = env::args_os().skip(1).collect();
     if args.len() < 1 {
@@ -56,49 +106,20 @@ fn main() -> io::Result<()> {
         println!("Error: Output file path argument is missing");
         process::exit(1);
     }
-    let filename = &args[0];
+    let input_filename = &args[0];
     let output_filename = &args[1];
+    let input_path = Path::new(input_filename);
+    let output_path = Path::new(output_filename);
 
-    let path = Path::new(filename);
-    let file_iter = FileRevIter::new(&path)?;
+    let mut hashes = Vec::new();
 
-    println!("File size: {}", file_iter.filesize);
+    compute_hashes(&input_path, &mut hashes)?;
 
-    let mut hash_data = Vec::new();
-
-    // Iterates file in from last block to first
-    for (mut len, mut buf) in file_iter {
-        if let Some(val) = hash_data.last() {
-            buf.extend(val);
-            len = buf.len();
-        }
-
-        let hash = Sha256::digest(&buf[0..len]);
-        hash_data.push(hash);
-    }
-
-    if let Some(val) = hash_data.last() {
+    if let Some(val) = hashes.last() {
         println!("Hash: {:x}", val);
     }
 
-    let mut output_file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(output_filename)?;
-
-    let mut input_file = File::open(path)?;
-    let mut buf = vec![0; DEFAULT_BUF_SIZE];
-
-    // We skip 1 because h0 is not included
-    for h in hash_data.iter().rev().skip(1) {
-        // Write each block appended with the hash of the next block
-        let len = input_file.read(&mut buf).unwrap();
-        output_file.write(&buf[0..len]).unwrap();
-        output_file.write(h).unwrap();
-    }
-    // Write last block (no appended hash)
-    let len = input_file.read(&mut buf).unwrap();
-    output_file.write(&buf[0..len]).unwrap();
+    sign(&input_path, &output_path, &hashes)?;
 
     Ok(())
 }
