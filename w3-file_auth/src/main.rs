@@ -60,7 +60,6 @@ fn compute_hashes<P>(input_path: P, hashes: &mut HashVec) -> io::Result<()>
     where P: AsRef<Path>
 {
     let file_iter = FileRevIter::new(input_path)?;
-    println!("File size: {}", file_iter.filesize);
 
     // Iterates file from last block to first
     for (mut len, mut buf) in file_iter {
@@ -171,16 +170,20 @@ fn main() -> io::Result<()> {
             let hash = hex::decode(hash).unwrap();
             let result = verify(&input_path, &output_path, &hash)?;
             println!("Verified: {}", result);
+            if result {
+                println!("File created: {}", output_path.display());
+            }
         },
         None => {
             let mut hashes = Vec::new();
             compute_hashes(&input_path, &mut hashes)?;
 
             if let Some(val) = hashes.last() {
-                println!("Hash: {:x}", val);
+                println!("Hash 0: {:x}", val);
             }
 
             sign(&input_path, &output_path, &hashes)?;
+            println!("File created: {}", output_path.display());
         },
     }
 
